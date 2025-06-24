@@ -1,0 +1,304 @@
+## Implementación del método de actualizacion de datos: 
+
+actu_lambda1 = max(na.omit(delta_pob))
+
+actu_mu1 = NULL 
+for (i in 2:745) {
+  actu_mu1[i] = (sua_poblacion01[i,3] - sua_poblacion01[(i-1),3] + actu_lambda1)/sua_poblacion01[(i-1),3]
+}
+plot(actu_mu1, col = "blue", lwd = 2, type = "l")
+
+acti_expuestos1 = ((-(sua_poblacion01[2:746,3] - sua_poblacion01[1:745,3]) + 
+                     (sua_datos_mod_SIRSEIR_df[2:746,1] - sua_datos_mod_SIRSEIR_df[1:745,1]) + 
+                     actu_lambda1 - actu_mu1[2:746]*(sua_poblacion01[1:745,3] - sua_datos_mod_SIRSEIR_df[1:745,1])+ 
+                     (1/2.5)*sua_datos_mod_SIRSEIR_df[1:745,1]))/(1/0.6193)
+plot(acti_expuestos1, type = "l", lwd = 2)
+
+datos_expu_rep_acti1 = data.frame((as.Date(dias_antes) + 3)[1:531], 
+                                  acti_expuestos1[1:531])
+
+acti_betas_seir1 = ((-(sua_poblacion01[2:746,3] - sua_poblacion01[1:745,3]) + 
+                      (acti_expuestos1[2:746] - acti_expuestos1[1:745]) + 
+                      (sua_datos_mod_SIRSEIR_df[2:746,1] - 
+                         sua_datos_mod_SIRSEIR_df[1:745,1]))/sua_datos_mod_SIRSEIR_df[1:745,1] + 
+                     (actu_lambda1 - actu_mu1[2:746]*(sua_poblacion01[1:745,3] - 
+                                                        acti_expuestos1[1:745] - 
+                                                        sua_datos_mod_SIRSEIR_df[1:745,1]))/sua_datos_mod_SIRSEIR_df[1:745,1] + 
+                      (1/2.5))
+plot(acti_betas_seir1, lwd = 2, type = "l")
+parametros_actiseir1 = data.frame((as.Date(dias_antes) + 3)[1:745], 
+                                  actu_mu1[1:745], acti_betas_seir1[1:745])
+
+acti_susceptiblesseir1 = NULL 
+acti_susceptiblesseir1[1] = sua_poblacion01[1,3] - acti_expuestos1[1] - 
+  sua_datos_mod_SIRSEIR_df[1,1] - x0[[1]][3]
+for (i in 2:746) {
+  acti_susceptiblesseir1[i] = acti_susceptiblesseir1[(i-1)] + actu_lambda1 - 
+    acti_betas_seir1[i]*sua_datos_mod_SIRSEIR_df[(i-1),1] - actu_mu1[i]*acti_susceptiblesseir1[(i-1)]
+}
+plot(acti_susceptiblesseir1[1:746], col = "blue", lwd = 2, type = "l")
+
+acti_recuperadosseir1 = NULL 
+acti_recuperadosseir1[1] = x0[[1]][3]
+for (j in 2:746) {
+  acti_recuperadosseir1[j] = acti_recuperadosseir1[(j-1)] + (1/2.5)*sua_datos_mod_SIRSEIR_df[(j-1),1] - 
+    actu_mu1[j]*acti_recuperadosseir1[(j-1)]
+}
+plot(acti_recuperadosseir1[1:730], type = "l", lwd = 2)
+plot(acti_susceptiblesseir1[1:730] + acti_recuperadosseir1[1:730], type = "l", lwd = 2)
+
+datos_sus_rep_actiseir1 = data.frame((as.Date(dias_antes) + 3)[1:531], 
+                                    acti_susceptiblesseir1[1:531], 
+                                    acti_recuperadosseir1[1:531])
+
+acti_betaseir1 = acti_betas_seir1[1:746]/acti_susceptiblesseir1[1:746]
+plot(acti_betaseir1[1:746], pch = 20)
+abline(v = 705, lwd = 2, col = "red")
+
+datos_betaseir = data.frame((as.Date(dias_antes) + 3)[1:531], 
+                            acti_betaseir[1:531])
+
+R0_1actuseir1 = actu_lambda1*(1/0.6193)*acti_betaseir1[1:531]/
+  (actu_mu1[1:531]*((1/2.5) + actu_mu1[1:531])*(1/0.6193 + 
+                                                  actu_mu1[1:531]))
+plot(R0_1actuseir1[1:705], pch = 20, type = "p", cex = 0.4)
+abline(v = 630, col = "red", lwd = 2)
+
+datos_r0act1 = data.frame((as.Date(dias_antes) + 3)[1:531], 
+                          R0_1actuseir1[1:531])
+library(ggplot2)
+grafica_IRA_ingles <- ggplot(data = IRA_bog_fin_1) + 
+  geom_point(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 3]), 
+             size = 1.5, color = "orchid1") + 
+  labs(x = 'Time (epidemic weeks)', y = 'Numbes of cases') + 
+  geom_line(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 3]), 
+            linewidth = 0.7, color = "orchid1") + 
+  geom_line(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 4]), 
+            linewidth = 0.6, color = "darkorchid2") +
+  geom_point(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 4]), 
+             size = 1.3, color = "darkorchid2") + 
+  geom_line(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 5]), 
+            linewidth = 1.2, color = "red4") +
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y")
+grafica_IRA_ingles # Número de casos 
+
+grafica_poblacion01ingles <- ggplot(data = proyeccion_bogota01) + 
+  geom_point(aes(x = proyeccion_bogota01[, 1], y = proyeccion_bogota01[, 2]), 
+             size = 2, color = "darkslategray4") + 
+  geom_line(aes(x = proyeccion_bogota01[, 1], y = proyeccion_bogota01[, 2]), 
+            linewidth = 0.8, color = "darkturquoise") + 
+  geom_line(aes(x = proyeccion_bogota01[, 1], y = proyeccion_bogota01[, 3]), 
+            linewidth = 0.8, color = "magenta2") + 
+  labs(x = 'Year', y = 'Total population')  + 
+  scale_x_continuous(breaks = seq(2005, 2035, by = 2)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  ylim(min(proyeccion_final_bogota), max(proyeccion_final_bogota))+ 
+  geom_vline(xintercept = c(2010, 2024), 
+             color = "magenta2", linewidth = 0.7)
+grafica_poblacion01ingles # Total de la poblacion 
+
+acti_muingles <- ggplot(data = parametros_actiseir1) + 
+  geom_line(aes(x = parametros_actiseir1[, 1], y = parametros_actiseir1[, 2]), color = "#6959CD",
+            linewidth = 1.2) +
+  #  geom_vline(xintercept = (as.Date(dias_antes) + 3)[puntos_corte], 
+  #             color = "deepskyblue3", linewidth = 0.5) + 
+  labs(x = 'Time (epidemic weeks)', y = expression(paste("Values of ", mu[i])))  + 
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y") 
+acti_muingles # Tasa de mortalidad
+
+grafica_pob2_ingles <- ggplot(data = datos_expu_rep_acti1) + 
+  geom_line(aes(x = datos_expu_rep_acti1[, 1], y = datos_expu_rep_acti1[, 2]), color = "darkgoldenrod1",
+            linewidth = 1.2) +
+  #   geom_vline(xintercept = (as.Date(dias_antes) + 3)[puntos_corte[1:32]], 
+  #              color = "deepskyblue3", linewidth = 0.3) + 
+  labs(x = 'Time (epidemic weeks)', y = 'No. of exposed population')  + 
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y") 
+grafica_pob2_ingles
+
+acti_betasseiringles <- ggplot(data = parametros_actiseir1) + 
+  geom_line(aes(x = parametros_actiseir1[, 1], y = parametros_actiseir1[, 3]), color = "#CD6889",
+            linewidth = 1.2) +
+  #   geom_vline(xintercept = (as.Date(dias_antes) + 3)[puntos_corte[1:32]], 
+  #              color = "deepskyblue3", linewidth = 0.3) + 
+  labs(x = 'Time (epidemic weeks)', y = expression(paste("Values of ", beta[i], "S")))  + 
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y") 
+acti_betasseiringles
+
+grafica_pob1_actisusseiringles <- ggplot(data = datos_sus_rep_actiseir1) + 
+  geom_line(aes(x = datos_sus_rep_actiseir1[, 1], y = datos_sus_rep_actiseir1[, 2]), color = "cornflowerblue",
+            linewidth = 1.2) +
+  #   geom_vline(xintercept = (as.Date(dias_antes) + 3)[puntos_corte[1:32]], 
+  #              color = "deepskyblue3", linewidth = 0.3) + 
+  labs(x = 'Time (epidemic weeks)', y = 'No. of susceptible population')  + 
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y") 
+grafica_pob1_actisusseiringles
+
+grafica_pob1_actirecseiringles <- ggplot(data = datos_sus_rep_actiseir1) + 
+  geom_line(aes(x = datos_sus_rep_actiseir1[, 1], y = datos_sus_rep_actiseir1[, 3]), color = "seagreen4",
+            linewidth = 1.2) +
+  #   geom_vline(xintercept = (as.Date(dias_antes) + 3)[puntos_corte[1:32]], 
+  #              color = "deepskyblue3", linewidth = 0.3) + 
+  labs(x = 'Time (epidemic weeks)', y = 'No. of recovered population')  + 
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y") 
+grafica_pob1_actirecseiringles
+
+datos_recuperadosseir1 = datos_sus_rep_actiseir1[1:640,3]
+datos_susceptiblesseir1 = datos_sus_rep_actiseir1[1:640,2]
+datos_expuestosseir1 = acti_expuestos1[1:640]
+datos_infectadosseir1 = datos_infectados_finalfin[1:640] # sua_datos_mod_SIRSEIR_df[1:640, 1]
+
+media_sseir1 = NULL
+media_eseir1 = NULL
+media_iseir1 = NULL
+media_rseir1 = NULL
+media_sseir1[1] = datos_susceptiblesseir1[1] # Dato tiempo 0
+media_eseir1[1] = datos_expuestosseir1[1]
+media_iseir1[1] = datos_infectadosseir1[1] # Dato tiempo 0
+media_rseir1[1] = datos_recuperadosseir1[1] # Dato tiempo 0
+for (i in 2:531) {
+  media_sseir1[i] = datos_susceptiblesseir1[(i-1)] + actu_lambda1 -
+    acti_betas_seir1[(i-1)]*datos_infectadosseir1[(i-1)] -
+    actu_mu1[i]*datos_susceptiblesseir1[(i-1)]
+  media_eseir1[i] = datos_expuestosseir1[(i-1)] + 
+    acti_betas_seir1[(i-1)]*datos_infectadosseir1[(i-1)] -
+    ((1/0.6193) + actu_mu1[i])*datos_expuestosseir1[(i-1)]
+  media_iseir1[i] = datos_infectadosseir1[(i-1)] +
+    (1/0.6193)*datos_expuestosseir1[(i-1)] -
+    ((1/2.5) + actu_mu1[i])*datos_infectadosseir1[(i-1)] 
+  media_rseir1[i] = datos_recuperadosseir1[(i-1)] +
+    (1/2.5)*datos_infectadosseir1[(i-1)] -
+    actu_mu1[i]*datos_recuperadosseir1[(i-1)]
+}
+
+sigma_betaseiringles = (1/531)*(1/8)*(3*sum((datos_susceptiblesseir1[1:531] - media_sseir1[1:531])^2/
+                                        ((datos_infectadosseir1[1:531]^2)*(datos_susceptiblesseir1[1:531]^2))) + 
+                                  (-1)*sum((datos_expuestosseir1[1:531] - media_eseir1[1:531])^2/
+                                             ((datos_infectadosseir1[1:531]^2)*(datos_susceptiblesseir1[1:531]^2))) + 
+                                  (-1)*sum((datos_infectadosseir1[1:531] - media_iseir1[1:531])^2/
+                                             ((datos_infectadosseir1[1:531]^2)*(datos_susceptiblesseir1[1:531]^2))) + 
+                                  (3)*sum((datos_recuperadosseir1[1:531] - media_rseir1[1:531])^2/
+                                            ((datos_infectadosseir1[1:531]^2)*(datos_susceptiblesseir1[1:531]^2))))
+sqrt(sigma_betaseiringles)
+
+sigma_upsiloningles = (1/531)*(1/2)*(sum((datos_expuestosseir1[1:531] - media_eseir1[1:531])^2/
+                                     (datos_expuestosseir1[1:531]^2))  - 
+                                 sum((datos_recuperadosseir1[1:531] - media_rseir1[1:531])^2/
+                                         (datos_expuestosseir1[1:531]^2)))
+sqrt(sigma_upsiloningles)
+
+sigma_gammaseiringles = (1/531)*(1/4)*(-sum((datos_susceptiblesseir1[1:531] - media_sseir1[1:531])^2/
+                                        (datos_infectadosseir1[1:531]^2)) - 
+                                   sum((datos_expuestosseir1[1:531] - media_eseir1[1:531])^2/
+                                         (datos_infectadosseir1[1:531]^2)) + 
+                                   3*sum((datos_infectadosseir1[1:531] - media_iseir1[1:531])^2/
+                                           (datos_infectadosseir1[1:531]^2)) + 
+                                   3*sum((datos_recuperadosseir1[1:531] - media_rseir1[1:531])^2/
+                                           (datos_infectadosseir1[1:531]^2)))
+sqrt(sigma_gammaseiringles)
+
+rhoseirseingles = - mean(sigma_betaseiringles*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2/
+                     (sqrt(sigma_betaseiringles*datos_susceptiblesseir1[1:531]*datos_infectadosseir1[1:531]*
+                        sqrt(sigma_betaseiringles*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2 + 
+                               sigma_upsiloningles*datos_expuestosseir1[1:531]^2)))
+rhoseireiingles = - mean(sigma_upsiloningles*datos_expuestosseir1[1:531]^2/
+                     (sqrt(sigma_betaseiringles*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2 + 
+                             sigma_upsiloningles*datos_expuestosseir1[1:531]^2)*
+                        sqrt(sigma_upsiloningles*datos_expuestosseir1[1:531]^2 + 
+                               sigma_gammaseiringles*datos_infectadosseir1[1:531]^2)))
+rhoseiriringles = - mean(sigma_gammaseiringles*datos_infectadosseir1[1:531]^2/
+                     (sqrt(sigma_gammaseiringles)*datos_infectadosseir1[1:531]*
+                        sqrt(sigma_upsiloningles*datos_expuestosseir1[1:531]^2 + 
+                               sigma_gammaseiringles*datos_infectadosseir1[1:531]^2)))
+
+R0_1actuseiringles = actu_lambda1*(1/0.6193)*acti_betaseir1[1:531]/
+  (actu_mu1[1:531]*((1/2.5) + actu_mu1[1:531])*((1/0.6193) + actu_mu1[1:531]))
+plot(R0_1actuseiringles[1:531], pch = 20, type = "p", cex = 0.4)
+
+R0estocasticoseiringles = (acti_betaseir1[1:531]^2*sigma_upsiloningles + 
+                       ((1/0.6193))^2*sigma_betaseiringles)*actu_lambda1^2/
+  (actu_mu1[1:531]^2*(actu_mu1[1:531] + (1/2.5))^3*(actu_mu1[1:531] + (1/0.6193))^3) + 
+  sigma_betaseiringles*sigma_upsiloningles*actu_lambda1^2/
+  (2*actu_mu1[1:531]^2*(actu_mu1[1:531] + (1/2.5))^4*(actu_mu1[1:531] + (1/0.6193))^4)
+
+plot(sqrt(R0estocasticoseiringles))
+
+R0_mean <- R0_1actuseiringles[1:531]
+R0_sd <- sqrt(R0estocasticoseiringles)
+
+R0_upper <- R0_mean + 1.96 * R0_sd
+R0_lower <- R0_mean - 1.96 * R0_sd
+
+plot(R0_mean, pch = 20, type = "p", cex = 0.4, col = "blue",
+     ylim = range(na.omit(R0_lower), na.omit(R0_upper)), ylab = expression(R[0]), xlab = "t",
+     main = expression(paste("95% Confidence Band for ", R[0])))
+lines(R0_upper, col = "red", lty = 2)  # límite superior
+lines(R0_lower, col = "red", lty = 2)  # límite inferior
+legend("topright", legend = c("Mean", "95% Confidence Band"),
+       col = c("blue", "red"), lty = c(NA, 2), pch = c(20, NA), bty = "n")
+
+
+R0_df <- data.frame(t = (as.Date(dias_antes) + 3)[1:531],
+  R0_mean = R0_mean,
+  R0_upper = R0_mean + 1.96 * R0_sd,
+  R0_lower = R0_mean - 1.96 * R0_sd)
+
+# Gráfica
+library(ggplot2)
+library(dplyr)
+
+# Datos
+R0_mean <- R0_1actuseiringles[1:531]
+R0_sd <- sqrt(R0estocasticoseiringles)
+t <- 1:531
+
+R0_df <- R0_df %>%
+  mutate(
+    fill_label = "95% \nConfidence \nInterval",
+    color_label = "Point \nestimate \nof R[0]^S"
+  )
+
+ggplot(R0_df, aes(x = t)) +
+  geom_ribbon(
+    aes(ymin = R0_lower, ymax = R0_upper, fill = "conf_int"),
+    alpha = 0.8
+  ) +
+  geom_line(
+    aes(y = R0_mean, color = "point_est"),
+    size = 0.6
+  ) +
+  geom_point(
+    aes(y = R0_mean, color = "point_est"),
+    size = 0.4
+  ) +
+  scale_fill_manual(
+    values = c("conf_int" = "grey80"),
+    labels = c("conf_int" = "95%\nConfidence\nInterval"),
+    name = NULL,
+    guide = guide_legend(override.aes = list(alpha = 0.8))
+  ) +
+  scale_color_manual(
+    values = c("point_est" = "blue"),
+    labels = c("point_est" = "Point\nestimate"),
+    name = NULL
+  ) +
+  scale_x_date(
+    date_breaks = "2 years",
+    date_labels = "%Y"
+  ) +
+  labs(
+    x = "Time (epidemic weeks)",
+    y = expression(R[0])
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    legend.position = "right",
+    legend.text = element_text(size = 9),
+    legend.title = element_blank(),
+    plot.title = element_blank(),
+    legend.key.height = unit(0.3, "lines"),
+    legend.text.align = 0
+  ) +
+  guides(
+    fill = guide_legend(order = 1),
+    color = guide_legend(order = 2)
+  )

@@ -1,0 +1,445 @@
+## Modelo COVID-19 
+# Base de datos: 
+
+base_covid_bta = data.frame(Datos_abiertos_1_)
+head(base_covid_bta)
+tail(base_covid_bta)
+length(Datos_abiertos_1_$Fecha_inicio_sintomas)
+length(Datos_abiertos_1_$Fecha_diagnostico)
+# install.packages("epitools")
+library(epitools)
+x <- seq(as.Date("2020-03-06"), as.Date("2022-01-01"), 
+         by="day")
+fech_covid = as.Date(as.character(base_covid_bta$Fecha_inicio_sintomas), 
+                     format= "%d/%m/%Y")
+base_covid_bta$Fecha_inicio_sintomas = fech_covid
+tab_covid = transform(table(base_covid_bta$fecha_hoy_casos))
+
+fech_recup = as.Date(as.character(base_covid_bta$Fecha_recuperado), 
+                     format= "%d/%m/%Y")
+base_covid_bta$Fecha_recuperado = fech_recup
+tab_recup = transform(table(base_covid_bta$Fecha_recuperado))
+
+fech_muert = as.Date(as.character(base_covid_bta$Fecha_muerte), 
+                     format= "%d/%m/%Y")
+base_covid_bta$Fecha_muerte = fech_muert
+tab_muert = transform(table(base_covid_bta$Fecha_muerte))
+
+tabla_in <- data.frame(x, 0, 0, 0)
+fechasin = which(tabla_in$x %in% as.Date(tab_covid$Var1))
+tabla_in$X0 <- replace(tabla_in$X0, list = fechasin, 
+                       values = tab_covid$Freq)
+fechasre = which(tabla_in$x %in% as.Date(tab_recup$Var1))
+tabla_in$X0.1 <- replace(tabla_in$X0.1, list = fechasre, 
+                         values = tab_recup$Freq[1:658])
+fechasmu = which(tabla_in$x %in% as.Date(tab_muert$Var1))
+tabla_in$X0.2 <- replace(tabla_in$X0.2, list = fechasmu, 
+                         values = tab_muert$Freq)
+# tabla_in tiene los datos de infectados, recuperados y fallecidos
+
+filas_col = which(owid_covid_data$location == "Colombia")
+vacunacion_colombia = owid_covid_data[filas_col, ]
+names(vacunacion_colombia)
+por_bog = 6742624/36312611
+
+vac_bog = na.omit(data.frame(vacunacion_colombia$date, 
+                             por_bog*vacunacion_colombia$people_fully_vaccinated))
+names(vac_bog) = c("fecha", "vacunado")
+fech_vacun = as.Date(as.character(vac_bog$fecha))
+
+tabla_datos = data.frame(tabla_in, 0)
+fechasva = which(tabla_datos$x %in% as.Date(fech_vacun))
+tabla_datos$X0.3 <- replace(tabla_datos$X0.3, list = fechasva, 
+                            values = vac_bog$vacunado[1:length(fechasva)])
+
+serie_vacun = replace(tabla_datos$X0.3, 
+                      list = which(tabla_datos$X0.3 == 0.000), 
+                      values = NA)
+library(imputeTS)
+serie_vacuna = na_interpolation(ts(serie_vacun[373:length(serie_vacun)]),
+                                option = "spline")
+plot(tabla_datos$X0.3, pch= 20)
+lines(373:667, serie_vacuna, lwd = 2, col = "blue")
+
+tabla_datos$X0.3[373:667] = serie_vacuna
+tail(tabla_datos)
+
+tabla_datos3 = data.frame(tabla_datos, 0)
+fechasho = which(tabla_datos$x %in% as.Date(osb_ocupacion$Fecha))
+tabla_datos3$X0.4 <- replace(tabla_datos3$X0.4, list = fechasho, 
+                             values = osb_ocupacion$`Camas UCI ocupadas Covid-19`[1:length(fechasho)])
+tail(tabla_datos3) 
+
+names(tabla_datos3) = c("Dia", "Infectados", "Recuperados", 
+                        "Fallecidos", "Vacunados", "UCI")
+head(tabla_datos3)
+plot(tabla_datos3$UCI)
+tabla_datos3$UCI = as.numeric(tabla_datos3$UCI)
+na_ta = which(tabla_datos3$UCI < 4) 
+library(npregfast)
+
+serie_uci <- replace(tabla_datos3$UCI, list = na_ta,
+                     values = NA)
+serie_uci[1] = 0
+df_uci = data.frame(1:667, serie_uci)
+np = frfast(df_uci$serie_uci ~ df_uci$X1.667, smooth = "kernel", 
+            p = 3, kbin = 667)
+plot(serie_uci, pch = 20)
+lines(data.frame(np$p)[,1], col = "blue", lwd = 2)
+
+serie_uci1 <- replace(tabla_datos3$UCI, list = na_ta,
+                      values = data.frame(np$p)[na_ta,1])
+plot(serie_uci1, pch = 20)
+
+tabla_datos3$UCI = serie_uci1
+tail(tabla_datos3)
+
+datos_finales_covid <- data.frame(tabla_datos3[1:657, -7])
+write.csv(datos_finales_covid, 
+          "D:/Tesis de doctorado/R/codigo doctorado/datos_finales_covid.csv")
+tail(datos_finales_covid)
+library(ggplot2)
+grafica_covidin <- ggplot(data = datos_finales_covid) + 
+  geom_point(aes(x = datos_finales_covid[, 1], y = datos_finales_covid[, 2]), 
+             size = 1.3, color = "firebrick1") + 
+  labs(x = 'fecha', y = 'Número de infectados')  + 
+  scale_x_date(date_breaks = "3 months", date_labels = "%b/%y") 
+
+grafica_covidre <- ggplot(data = datos_finales_covid) + 
+  geom_point(aes(x = datos_finales_covid[, 1], y = datos_finales_covid[, 3]), 
+             size = 1.3, color = "#698B69") + 
+  labs(x = 'fecha', y = 'Número de recuperados')  + 
+  scale_x_date(date_breaks = "3 months", date_labels = "%b/%y") 
+
+grafica_covidfa <- ggplot(data = datos_finales_covid) + 
+  geom_point(aes(x = datos_finales_covid[, 1], y = datos_finales_covid[, 4]), 
+             size = 1.3, color = "#6C7B8B") + 
+  labs(x = 'fecha', y = 'Número de fallecidos')  + 
+  scale_x_date(date_breaks = "3 months", date_labels = "%b/%y")
+
+vacunacovid = data.frame(datos_finales_covid[373:657, 1], 
+                         serie_vacun[373:657])
+grafica_covidva <- ggplot() + 
+  geom_line(data = vacunacovid, aes(x = vacunacovid[, 1], y = vacunacovid[, 2]), 
+            linewidth = 1.2, color = "#00C5CD") +
+  geom_line(data = datos_finales_covid, 
+             aes(x = datos_finales_covid[, 1], y = datos_finales_covid[, 5]), 
+            linewidth = 1.2, color = "#00F5FF") +
+  labs(x = 'fecha', y = 'Número de vacunados')  + 
+  scale_x_date(date_breaks = "2 months", date_labels = "%b/%y") + 
+  xlim(c(as.Date("2021-03-13"), as.Date("2021-12-22")))
+
+imp_hosp = NULL
+imp_hosp = replace(imp_hosp, list = na_ta, 
+                   values = datos_finales_covid[na_ta,6])
+df_uci_gg = data.frame(datos_finales_covid[,1], 
+                       imp_hosp[1:657])
+
+# Estimacion de poblaciones sin informacion 
+library(npregfast)
+datos_pob_covid = dias_suavizar[10:14, 1:2]
+pob_covid_tot <- frfast(datos_pob_covid[, 2]~datos_pob_covid[,1], 
+                        model = "np", smooth = "kernel", 
+                        kbin = (365+365+366+365+365), p =3) 
+data.frame(pob_covid_tot$p)[731:1461, 1]
+
+# lambda_covid = data.frame(pob_covid_tot$p)[796:(795+658), 1] - 
+#   data.frame(pob_covid_tot$p)[795:(795+657), 1]
+
+lambda_covid = mean(na.omit(delta_pob))/7
+
+mu_epocovid = (data.frame(pob_covid_tot$p)[796:(795+657), 1] - 
+                 data.frame(pob_covid_tot$p)[795:(795+656), 1] + lambda_covid)/data.frame(pob_covid_tot$p)[795:(795+656), 1]
+
+mu_covid = (datos_finales_covid$Fallecidos[2:657] - 
+              datos_finales_covid$Fallecidos[1:656])/
+  datos_finales_covid$UCI[1:656]
+plot(mu_covid[3:656], type = "l", lwd = 2)
+
+gamma_hosp = 1/((12+14)/2)
+
+eta_covid = ((datos_finales_covid$UCI[2:657] - datos_finales_covid$UCI[1:656] + 
+                    (gamma_hosp + mu_epocovid[1:656] + mu_covid[1:656])*datos_finales_covid$UCI[1:656]))/datos_finales_covid$UCI[1:656]
+plot(eta_covid[2:656], lwd = 2, type = "l")
+
+gamma_inf = 1/(0.96063*((7+15)/2) + 0.03937*((15+60)/2)) # leve 1-2 sem, grave = 2-8 sem
+
+zeta = 1/5.08
+xi = 0.88 # 88% son sintomáticos
+expuestos_covid = (datos_finales_covid$Infectados[2:657] - 
+                     datos_finales_covid$Infectados[1:656] + 
+                     (gamma_inf + abs(mu_covid) + mu_epocovid[1:656])*datos_finales_covid$Infectados[1:656])/(zeta*xi)
+mean(expuestos_covid)
+plot(expuestos_covid, lwd = 2, type = "l") # Los expuestos dan 
+# valores negativos 
+expuestos_sincovid = data.frame(datos_finales_covid[1:656, 1], 
+                                expuestos_covid)
+
+library(npregfast)
+covid_infsua = data.frame(frfast(datos_finales_covid$Infectados~datos_finales_covid$Dia, 
+                                 model = "np", smooth = "kernel", 
+                                 kbin = 657, p =3)$p)[,1]
+covid_recsua = data.frame(frfast(datos_finales_covid$Recuperados~datos_finales_covid$Dia, 
+                                 model = "np", smooth = "kernel", 
+                                 kbin = 657, p =3)$p)[,1]
+covid_falsua = data.frame(frfast(datos_finales_covid$Fallecidos~datos_finales_covid$Dia, 
+                                 model = "np", smooth = "kernel", 
+                                 kbin = 657, p =3)$p)[,1]
+covid_hossua = data.frame(frfast(datos_finales_covid$UCI~datos_finales_covid$Dia, 
+                                 model = "np", smooth = "kernel", 
+                                 kbin = 657, p =3)$p)[,1]
+covid_vacsua = data.frame(frfast(datos_finales_covid$Vacunados~datos_finales_covid$Dia, 
+                                 model = "np", smooth = "kernel", 
+                                 kbin = 657, p =3)$p)[,1]
+
+mu_covid1 = (covid_falsua[2:657] - covid_falsua[1:656])/covid_hossua[1:656]
+plot(mu_covid1[2:656], type = "l", lwd = 2)
+
+gamma_hosp = 1/((12+14)/2) # 14 o 30
+eta_covid1 = ((covid_hossua[2:657] - covid_hossua[1:656] + 
+                 (gamma_hosp + mu_epocovid[1:656] + abs(mu_covid1[1:656]))*covid_hossua[1:656]))/covid_infsua[1:656]
+plot(eta_covid1[2:656], lwd = 2, type = "l")
+
+expuestos_covid1 = (covid_infsua[2:657] - 
+                      covid_infsua[1:656] + 
+                      (gamma_inf + mu_covid1 + mu_epocovid[1:656])*covid_infsua[1:656])/(zeta*xi)
+plot(expuestos_covid1, lwd = 2, type = "l") # Los expuestos dan 
+
+gamma_asi = 1/7
+gamma_asin.asinto =  covid_recsua[2:657] - covid_recsua[1:656] - 
+  gamma_hosp*covid_hossua[1:656] - gamma_inf*covid_infsua[1:656] + 
+  mu_epocovid[1:656]*covid_recsua[1:656]
+
+porce_covid = na.omit(data.frame(vacunacion_colombia$date[373:657], 
+                                 vacunacion_colombia$people_vaccinated_per_hundred[373:657]))
+imp_porcen = data.frame(frfast(porce_covid[,2]~porce_covid[,1], 
+                               model = "np", smooth = "kernel", p = 3, 
+                               kbin = 285)$p)[,1]
+vac = imp_porcen/100
+var(vac)
+rho_covid = c(rep(0, 372), vac)
+covid_asisua = NULL 
+covid_asisua[1] = 0 # 0.12*covid_infsua[1]
+for (j in 2:657){
+  covid_asisua[j] = covid_asisua[(j-1)] + zeta*(1-xi)*expuestos_covid1[(j-1)] - 
+    (mu_epocovid[j] + gamma_asi)*covid_asisua[(j-1)] - gamma_asin.asinto[(j-1)]
+}
+plot(covid_asisua, type = "l", lwd = 2)
+gamma_a = gamma_asin.asinto[1:655]/covid_asisua[1:655]
+plot(gamma_a[7:655], lwd = 2, type = "l")
+
+datos_pob_covid = data.frame(pob_covid_tot$p)[795:(795+657), 1]
+covid_sussua = datos_pob_covid[1:657] - expuestos_covid1[1:657] - 
+  covid_infsua[1:657] - covid_recsua[1:657] - covid_hossua[1:657] - 
+  covid_falsua[1:657] - covid_vacsua[1:657] - covid_asisua[1:657]
+
+plot(covid_sussua, pch = 20, cex = 0.3)
+covid_expsua = expuestos_covid1
+datos_covid_suaves = data.frame(datos_finales_covid[1:652, 1], 
+                                covid_sussua[1:652], covid_expsua[1:652], 
+                                covid_asisua[1:652])
+
+beta_covid2 = (covid_expsua[2:656] - covid_expsua[1:655] + 
+  (rho_covid[1:655] + mu_epocovid[1:655] + zeta)*covid_expsua[1:655])/
+  (covid_sussua[1:655]*covid_asisua[1:655] + covid_infsua[1:655]*covid_sussua[1:655])
+plot(abs(beta_covid2[1:655]), pch = 20)
+
+R0covid = (beta_covid2*zeta*xi*mean(na.omit(delta_pob))/7)/
+  (mu_epocovid[1:655]*(rho_covid[1:655] + mu_epocovid[1:655] + zeta)*
+     (mu_epocovid[1:655] + eta_covid1[1:655] + gamma_inf)) + 
+  (abs(beta_covid2)*zeta*(1-xi)*max(na.omit(delta_pob))/7)/
+  (mu_epocovid[1:655]*(rho_covid[1:655] + mu_epocovid[1:655] + zeta)*
+     (mu_epocovid[1:655] + gamma_asi + rho_covid[1:655])) # gamma_inf mayor 
+
+plot(R0covid, ylim = c(0,1))
+
+df_R0covid = data.frame(datos_finales_covid[4:652, 1], 
+                        R0covid[4:652])
+  
+a = (covid_sussua[1:655]*covid_asisua[1:655] + covid_sussua[1:655]*covid_infsua[1:655])^2
+b = covid_sussua[1:655]^2
+c = covid_expsua[1:655]^2
+d = covid_infsua[1:655]^2
+e = covid_asisua[1:655]^2
+f = covid_hossua[1:655]^2
+z = 1/((2+14)/2)
+v_m = list()
+for (j in 1:655){
+  v_m[[j]] <- matrix(0, nrow = 10, ncol = 10)
+}
+for (j in 1:655){
+  v_m[[j]][1, ] = c(2*a[j], b[j], c[j], c[j], 0, 0, 0, 0, 0, 0) 
+  v_m[[j]][2, ] = c(a[j], 2*b[j], c[j], 0, 0, 0, 0, e[j], 0, 0) 
+  v_m[[j]][3, ] = c(a[j], b[j], 2*c[j], c[j], 0, 0, 0, e[j], 0, 0) 
+  v_m[[j]][4, ] = c(a[j], 0, 0, c[j]*(1+z^2+(1-z)^2), d[j], d[j], e[j], e[j], 0, 0) 
+  v_m[[j]][5, ] = c(0, 0, 0, c[j]*z^2, 2*d[j], d[j], e[j], 0, f[j], 0) 
+  v_m[[j]][6, ] = c(0, 0, 0, c[j]*z^2, d[j], 2*d[j], 0, 0, f[j], f[j]) 
+  v_m[[j]][7, ] = c(0, 0, 0, c[j]*(1-z)^2, d[j], 0, 2*e[j], e[j], f[j], 0)
+  v_m[[j]][8, ] = c(0, b[j], c[j], c[j]*(1-z)^2, 0, 0, e[j], 2*e[j], 0, 0) 
+  v_m[[j]][9, ] = c(0, 0, 0, 0, d[j], d[j], e[j], 0, 2*f[j], f[j]) 
+  v_m[[j]][10, ] = c(0, 0, 0, 0, 0, d[j], 0, 0, f[j], 2*f[j]) 
+}
+
+medcovidsus = covid_sussua[2:656] + lambda_covid - beta_covid2[1:655]*(
+  covid_sussua[1:655]*covid_infsua[1:655] + covid_sussua[1:655]*covid_asisua[1:655]) - 
+  (rho_covid[1:655] + mu_epocovid[1:655])*covid_sussua[1:655]
+medcovidexp = covid_expsua[2:656] + beta_covid2[1:655]*(
+  covid_sussua[1:655]*covid_infsua[1:655] + covid_sussua[1:655]*covid_asisua[1:655]) - 
+  (rho_covid[1:655] + mu_epocovid[1:655] + zeta)*covid_expsua[1:655]
+medcovidinf = covid_infsua[2:656] + zeta*xi*covid_expsua[1:655] - (
+  eta_covid1[1:655]+ gamma_inf + mu_epocovid[1:655])*covid_infsua[1:655]
+medcovidasi = covid_asisua[2:656] + zeta*(1-xi)*covid_expsua[1:655] - (
+  rho_covid[1:655] + mu_epocovid[1:655] + gamma_asi)*covid_asisua[1:655]
+medcovidhos = covid_hossua[2:656] + eta_covid1[1:655]*covid_infsua[2:656] - (
+  gamma_hosp + mu_epocovid[1:655] + mu_covid1[1:655])*covid_hossua[1:655]
+medcovidrec = covid_recsua[2:656] + gamma_inf*covid_infsua[1:655] + 
+  gamma_asi*covid_asisua[1:655] + gamma_hosp*covid_hossua[1:655] - 
+  mu_epocovid[1:655]*covid_recsua[1:655]
+medcovidvac = covid_vacsua[2:656] + rho_covid[1:655]*covid_sussua[1:655] + 
+  rho_covid[1:655]*covid_expsua[1:655] + rho_covid[1:655]*covid_asisua[1:655] - 
+  mu_epocovid[1:655]*covid_vacsua[1:655]
+medcovidmue = covid_falsua[2:656] - mu_covid1[1:655]*covid_hossua[1:655]
+
+g = (covid_sussua[1:655] - medcovidsus)^2
+h = (covid_expsua[1:655] - medcovidexp)^2
+i = (covid_infsua[1:655] - medcovidinf)^2
+j = (covid_asisua[1:655] - medcovidasi)^2
+k = (covid_hossua[1:655] - medcovidhos)^2
+l = (covid_recsua[1:655] - medcovidrec)^2
+m = (covid_vacsua[1:655] - medcovidvac)^2
+n = (covid_falsua[1:655] - medcovidmue)^2
+library(MASS)
+sol_covid = list()
+for (s in 2:655){
+  sol_covid[[s]] = ginv(v_m[[s]])%*%
+    (c(g[s]+h[s], g[s]+m[s], h[s]+m[s], h[s]+i[s]+j[s], i[s]+l[s], i[s]+k[s], 
+       j[s]+l[s], j[s]+m[s], l[s]+k[s], k[s]+n[s]))    
+}
+
+esti_varianza_covid = NULL
+for (i in 1:10){
+  esti_varianza_covid[i] = mean(unlist(lapply(sol_covid, function(x) x[i])))
+}
+esti_varianza_covid
+sqrt(abs(esti_varianza_covid))
+
+sol_covid[[5]]
+
+k1 = (rho_covid[1:655] + mu_epocovid[1:655] + zeta)*
+  (mu_epocovid[1:655] + gamma_asi + rho_covid[1:655])
+k2 = (rho_covid[1:655] + mu_epocovid[1:655] + zeta)*
+  (mu_epocovid[1:655] + eta_covid1[1:655] + gamma_inf)
+
+var_sa = (lambda_covid/mu_epocovid[1:655])^2*((1-xi)^2*(((beta_covid2[1:655])^2*2.502867e-01^2 + zeta^2*6.337901e-06^2)/(2*k1^3) + 
+                      2.502867e-01^2*6.337901e-06^2/(2*k1^4)))
+var_si = (lambda_covid/mu_epocovid[1:655])^2*(xi^2*(((beta_covid2[1:655])^2*2.502867e-01^2 + zeta^2*6.337901e-06^2)/(2*k2^3) + 
+                  2.502867e-01^2*6.337901e-06^2/(2*k2^4)))
+cov_sasi = (lambda_covid/mu_epocovid[1:655])^2*2*beta_covid2[1:655]^2*2.502867e-01^2*xi*(1-xi)/(k1*k2*(k1+k2))
+
+var_R0covid = var_sa+var_si + cov_sasi
+plot(var_R0covid, type = "l")
+
+varianzar0covid = data.frame(datos_finales_covid[328:652, 1], 
+                             sqrt(sqrt(var_R0covid[328:652])))
+library(ggplot2)
+Sys.setlocale("LC_TIME", "English")
+grafica_covidiningles <- ggplot(data = datos_finales_covid) + 
+  geom_point(aes(x = datos_finales_covid[, 1], y = datos_finales_covid[, 2]), 
+             size = 1, color = "firebrick1") + 
+  labs(x = 'Date', y = 'Number of infected population')  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y") 
+
+grafica_covidreingles <- ggplot(data = datos_finales_covid) + 
+  geom_point(aes(x = datos_finales_covid[, 1], y = datos_finales_covid[, 3]), 
+             size = 1, color = "#698B69") + 
+  labs(x = 'Date', y = 'Number of recovered population')  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y")
+
+grafica_covidfaingles <- ggplot(data = datos_finales_covid) + 
+  geom_point(aes(x = datos_finales_covid[, 1], y = datos_finales_covid[, 4]), 
+             size = 1, color = "#6C7B8B") + 
+  labs(x = 'Date', y = 'Number of deceased population')  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y")
+
+grafica_covidvaingles <- ggplot() + 
+  geom_line(data = vacunacovid, aes(x = vacunacovid[, 1], y = vacunacovid[, 2]), 
+            linewidth = 1, color = "#00F5FF") +
+  geom_line(data = datos_finales_covid, 
+            aes(x = datos_finales_covid[, 1], y = datos_finales_covid[, 5]), 
+            linewidth = 1, color = "#00C5CD") +
+  labs(x = 'Date', y = 'Number of vaccinated population')  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y") 
+
+grafica_covidhoingles <- ggplot() + 
+  geom_point(data = datos_finales_covid, 
+             aes(x = datos_finales_covid[,1], y = datos_finales_covid[,6]), 
+             size = 1, color = "#FF1493") + 
+  geom_line(data = df_uci_gg , 
+            aes(x = df_uci_gg[, 1], y = df_uci_gg[, 2]), 
+            linewidth =  1, color = "#FF1493") +
+  labs(x = 'Date', y = 'Number of hospitalized population')  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y") 
+
+grafica_poblacion01ingles <- ggplot(data = proyeccion_bogota01) + 
+  geom_point(aes(x = proyeccion_bogota01[, 1], y = proyeccion_bogota01[, 2]), 
+             size = 2, color = "darkslategray4") + 
+  geom_line(aes(x = proyeccion_bogota01[, 1], y = proyeccion_bogota01[, 2]), 
+            linewidth = 0.8, color = "darkturquoise") + 
+#  geom_line(aes(x = proyeccion_bogota01[, 1], y = proyeccion_bogota01[, 3]), 
+#            linewidth = 0.8, color = "magenta2") + 
+  labs(x = 'Year', y = 'Total population')  + 
+  scale_x_continuous(breaks = seq(2005, 2035, by = 5)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+  ylim(min(proyeccion_final_bogota), max(proyeccion_final_bogota)) 
+#  geom_vline(xintercept = c(2018, 2020), 
+#             color = "magenta2", linewidth = 0.7)
+
+grafica_covidsuingles <- ggplot(data = datos_covid_suaves) + 
+  geom_line(aes(x = datos_covid_suaves[, 1], y = datos_covid_suaves[, 2]), 
+            linewidth = 1, color = "royalblue4") + 
+  labs(x = 'Date', y = 'Estimated susceptible population')  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y")
+
+grafica_covidexingles <- ggplot(data = datos_covid_suaves) + 
+  geom_line(aes(x = datos_covid_suaves[, 1], y = datos_covid_suaves[, 3]), 
+            linewidth = 1, color = "darkorange1") + 
+  labs(x = 'Date', y = 'Estimated exposed population')  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y")
+
+grafica_covidasingles <- ggplot(data = datos_covid_suaves) + 
+  geom_line(aes(x = datos_covid_suaves[, 1], y = datos_covid_suaves[, 4]), 
+            linewidth = 1, color = "violetred2") + 
+  labs(x = 'Date', y = 'Estimated asymptotic population')  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y")
+
+df_R0covidingles = data.frame(datos_finales_covid[2:652, 1], 
+                        R0covid[2:652])
+grafica_R0covidingles <- ggplot(data = df_R0covidingles) + 
+  geom_line(aes(x = df_R0covidingles[, 1], y = df_R0covidingles[, 2]), 
+            linewidth = 1, color = "purple3") + 
+  labs(x = 'Date', y = bquote("Estimated " ~ R[0])) + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y") + 
+  scale_y_continuous(breaks = seq(0, 1.2, 0.2), limits = c(0, 1.15))
+
+## Prueba de hipotesis 
+
+Dc2 = (R0covid[4:652])^2/var_R0covid[4:652]
+valoresp = rep(0, 652)
+for (i in 4:652){
+  valoresp[i] = pchisq(Dc2[i], df = 1, ncp = 1/var_R0covid[i])
+}
+
+plot(valoresp[4:652])
+abline(h = 0.05, lwd = 2, col = "red")
+
+valoresp1 <- data.frame(datos_finales_covid[4:652, 1], 
+                        valoresp[4:652])
+
+graficavaloresp <- ggplot(data = valoresp1) + 
+  geom_line(aes(x = valoresp1[, 1], y = valoresp1[, 2]), 
+            linewidth = 1, color = "darkolivegreen") + 
+  geom_hline(yintercept = 0.05, color = "red", linetype = "dashed", linewidth = 0.8) + 
+  labs(x = 'Date', y = "p-value")  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y")
+
+graficavaloresp

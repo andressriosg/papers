@@ -443,3 +443,358 @@ graficavaloresp <- ggplot(data = valoresp1) +
   scale_x_date(date_breaks = "4 months", date_labels = "%b/%y")
 
 graficavaloresp
+
+### Codigo CORREGIDO: 
+
+# Estimadores de las volatilidades 
+
+S <- as.numeric(covid_sussua[1:655])
+E <- as.numeric(covid_expsua[1:655])
+I <- as.numeric(covid_infsua[1:655])
+A <- as.numeric(covid_asisua[1:655])
+H <- as.numeric(covid_hossua[1:655])
+R <- as.numeric(covid_recsua[1:655])
+V <- as.numeric(covid_vacsua[1:655])
+M <- as.numeric(covid_falsua[1:655])
+
+a1 <- (S[1:655]*A[1:655] + S[1:655]*I[1:655])^2
+b1 <- S[1:655]^2
+c1 <- E[1:655]^2
+d1 <- I[1:655]^2
+e1 <- A[1:655]^2
+f1 <- H[1:655]^2
+
+g1 <- (S[2:656] - medcovidsus)^2
+h1 <- (E[2:656] - medcovidexp)^2
+i1 <- (I[2:656] - medcovidinf)^2
+j1 <- (A[2:656] - medcovidasi)^2
+k11 <- (H[2:656] - medcovidhos)^2
+l1 <- (R[2:656] - medcovidrec)^2
+m1 <- (V[2:656] - medcovidvac)^2
+n1 <- (M[2:656] - medcovidmue)^2
+
+library(MASS)
+
+sol_covid <- vector("list", 655)
+
+for (jj in 1:655){
+  
+  # Matriz A_j (8x10)
+  A_j <- matrix(0, nrow = 8, ncol = 10)
+  
+  A_j[1,] <- c(a1[jj], b1[jj], 0, 0, 0, 0, 0, 0, 0, 0)
+  A_j[2,] <- c(a1[jj], 0, c1[jj], c1[jj], 0, 0, 0, 0, 0, 0)
+  A_j[3,] <- c(0, 0, 0, xi^2*c1[jj], d1[jj], d1[jj], 0, 0, 0, 0)
+  A_j[4,] <- c(0, 0, 0, (1-xi)^2*c1[jj], 0, 0, e1[jj], e1[jj], 0, 0)
+  A_j[5,] <- c(0, 0, 0, 0, 0, d1[jj], 0, 0, f1[jj], f1[jj])
+  A_j[6,] <- c(0, 0, 0, 0, d1[jj], 0, e1[jj], 0, f1[jj], 0)
+  A_j[7,] <- c(0, b1[jj], c1[jj], 0, 0, 0, 0, e1[jj], 0, 0)
+  A_j[8,] <- c(0, 0, 0, 0, 0, 0, 0, 0, 0, f1[jj])
+  
+  # Vector b_j (8x1)
+  b_j <- c(g1[jj], h1[jj], i1[jj], j1[jj], k11[jj], l1[jj], m1[jj], n1[jj])
+  
+  # Solución (pseudo-inversa)
+  sol <- ginv(A_j) %*% b_j
+  
+  sol_covid[[jj]] <- as.numeric(sol)
+}
+
+sol_matrix <- do.call(rbind, sol_covid)
+esti_varianza_covid <- colMeans(sol_matrix, na.rm = TRUE)
+esti_varianza_covid <- esti_varianza_covid
+sigma_est <- sqrt(esti_varianza_covid)
+sigma_est
+
+names(sigma_est) = c(
+  "sigma_beta",
+  "sigma_rho_s",
+  "sigma_rho_e",
+  "sigma_upsilon",
+  "sigma_gamma_i",
+  "sigma_varpi",
+  "sigma_gamma_a",
+  "sigma_rho_a",
+  "sigma_gamma_h",
+  "sigma_nu"
+)
+
+# Varianza del R0 estocastico 
+
+k1 = (rho_covid[1:655] + mu_epocovid[1:655] + zeta)*
+  (mu_epocovid[1:655] + gamma_asi + rho_covid[1:655])
+k2 = (rho_covid[1:655] + mu_epocovid[1:655] + zeta)*
+  (mu_epocovid[1:655] + eta_covid1[1:655] + gamma_inf)
+
+var_sa1 = (lambda_covid/mu_epocovid[1:655])^2*((1-xi)^2*((beta_covid2[1:655]^2*sigma_est["sigma_upsilon"]^2 + 
+                                                         zeta^2*sigma_est["sigma_beta"]^2)/(2*k1^3) + 
+                                                        sigma_est["sigma_beta"]^2*sigma_est["sigma_upsilon"]^2/(2*k1^4)))
+var_si1 = (lambda_covid/mu_epocovid[1:655])^2*(xi^2*((beta_covid2[1:655]^2*sigma_est["sigma_upsilon"]^2 + 
+                                                     zeta^2*sigma_est["sigma_beta"]^2)/(2*k2^3) + 
+                                                    sigma_est["sigma_beta"]^2*sigma_est["sigma_upsilon"]^2/(2*k2^4)))
+cov_sasi1 = (lambda_covid/mu_epocovid[1:655])^2*2*beta_covid2[1:655]^2*sigma_est["sigma_upsilon"]^2*xi*(1-xi)/(k1*k2*(k1+k2))
+
+var_R0covid1 = var_sa1+var_si1 + cov_sasi1
+plot(var_R0covid1, type = "l", ylim = c(0, 1))
+
+# Coeficiente de determinacion 
+
+trayectorias_inf1 = list()
+for (j in 1:1000){
+  trayectorias_inf1[[j]] = (datos_finales_covid$Infectados[2:656] - medcovidinf + 
+                             sigma_est["sigma_gamma_i"]*datos_finales_covid$Infectados[2:656]
+                           *rnorm(length(medcovidinf)) + 
+                             sigma_est["sigma_nu"]*datos_finales_covid$Infectados[2:656]*
+                             rnorm(length(medcovidinf)))^2
+}
+
+trayectoria_media1 = rowMeans(do.call(cbind, trayectorias_inf1))
+sce1 = sum(trayectoria_media1)
+
+sct1 <- sum((datos_finales_covid$Infectados[2:656] - 
+               mean(datos_finales_covid$Infectados[2:656]))^2)
+R2 <- 1 - sce1/sct1
+R2
+
+# Valores p de R0 
+
+Dc2_1 = (R0covid[4:655])^2/var_R0covid1[4:655]
+valoresp2 = rep(0, 655)
+for (i in 4:655){
+  valoresp2[i] = pchisq(Dc2_1[i], df = 1, ncp = 1/var_R0covid1[i])
+}
+
+plot(valoresp2[1:655])
+abline(h = 0.05, lwd = 2, col = "red")
+
+valoresp3 <- data.frame(datos_finales_covid[4:652, 1], 
+                        valoresp2[4:652])
+
+graficavaloresp1 <- ggplot(data = valoresp3) + 
+  geom_line(aes(x = valoresp3[, 1], y = valoresp3[, 2]), 
+            linewidth = 1, color = "darkolivegreen") + 
+  geom_hline(yintercept = 0.05, color = "red", linetype = "dashed", linewidth = 0.8) + 
+  labs(x = 'Date', y = "p-value")  + 
+  scale_x_date(date_breaks = "4 months", date_labels = "%b/%y")
+
+graficavaloresp1
+
+# Akaike y Fisher 
+
+residuos = cbind(
+  covid_sussua[1:655] - medcovidsus,
+  covid_expsua[1:655] - medcovidexp,
+  covid_infsua[1:655] - medcovidinf,
+  covid_asisua[1:655] - medcovidasi,
+  covid_hossua[1:655] - medcovidhos,
+  covid_recsua[1:655] - medcovidrec,
+  covid_vacsua[1:655] - medcovidvac,
+  covid_falsua[1:655] - medcovidmue
+)
+
+n = nrow(residuos)
+d = ncol(residuos)
+p = 10
+
+V_hat = (t(residuos) %*% residuos) / n
+logdet = as.numeric(determinant(V_hat, logarithm = TRUE)$modulus)
+
+logLik = - (n*d/2)*log(2*pi) - (n/2)*logdet - (n*d/2)
+
+AIC = 2*p - 2*logLik
+AIC
+
+library(MASS)
+
+I_fisher <- matrix(0, 10, 10)
+
+n <- length(v_m)
+
+for (j in 2:n){
+  
+  # Covarianza correcta (elementwise scaling)
+  Vj <- v_m[[j]] * esti_varianza_covid
+  
+  # Inversa estable
+  Vj_inv <- ginv(Vj)
+  
+  Aj <- v_m[[j]]
+  
+  for (k in 1:10){
+    for (l in 1:10){
+      
+      Ak <- matrix(Aj[,k], nrow = 10, ncol = 10)
+      Al <- matrix(Aj[,l], nrow = 10, ncol = 10)
+      
+      I_fisher[k,l] <- I_fisher[k,l] +
+        0.5 * sum(diag(Vj_inv %*% Ak %*% Vj_inv %*% Al))
+    }
+  }
+}
+
+I_fisher_reg <- I_fisher + 1e-10 * diag(10)
+
+eig_vals <- eigen(I_fisher_reg, symmetric = TRUE)$values
+
+I_fisher_reg
+eig_vals
+
+# Analisis de sensibilidad 
+
+library(ggplot2)
+
+# valores de sigma_beta que quieres comparar
+sigma_beta_vals <- c(1e-6, 7e-3, 1e-2)
+
+time <- datos_finales_covid$Dia[1:655]
+
+df_plot <- data.frame()
+
+for (sb in sigma_beta_vals){
+  
+  su <- sigma_est["sigma_upsilon"]
+  
+  var_sa = (lambda_covid/mu_epocovid[1:655]) * ((1-xi)^2 * 
+                                                  ((beta_covid2[1:655]^2*sb^2 + zeta^2*su^2)/(2*k1^3) + 
+                                                     sb^2*su^2/(2*k1^4)))
+  
+  var_si = (lambda_covid/mu_epocovid[1:655]) * (xi^2 * 
+                                                  ((beta_covid2[1:655]^2*sb^2 + zeta^2*su^2)/(2*k2^3) + 
+                                                     sb^2*su^2/(2*k2^4)))
+  
+  cov_sasi = (lambda_covid/mu_epocovid[1:655]) *
+    2*beta_covid2[1:655]^2*sb^2*xi*(1-xi)/(k1*k2*(k1+k2))
+  
+  var_R0 <- var_sa + var_si + cov_sasi
+  
+  df_plot <- rbind(df_plot, data.frame(
+    time = time,
+    sigma_beta = factor(sb),
+    varR0 = var_R0
+  ))
+}
+
+df_plot$relative <- df_plot$varR0 / max(df_plot$varR0, na.rm = TRUE)
+
+ggplot(df_plot, aes(x = time, y = relative, color = sigma_beta)) +
+  geom_line(linewidth = 0.85) +
+  labs(y = "Relative Var(R0)") +
+  theme_minimal()
+
+# Respecto a sigma_upsilon
+
+sigma_ups_vals <- c(1e-7, 2e-7, 3e-7)
+
+time <- datos_finales_covid$Dia[1:655]
+df_plot <- data.frame()
+
+sb <- sigma_est["sigma_beta"]  # fijo
+
+for (su in sigma_ups_vals){
+  
+  var_sa = (lambda_covid/mu_epocovid[1:655]) * ((1-xi)^2 * 
+                                                  ((beta_covid2[1:655]^2*sb^2 + zeta^2*su^2)/(2*k1^3) + 
+                                                     sb^2*su^2/(2*k1^4)))
+  
+  var_si = (lambda_covid/mu_epocovid[1:655]) * (xi^2 * 
+                                                  ((beta_covid2[1:655]^2*sb^2 + zeta^2*su^2)/(2*k2^3) + 
+                                                     sb^2*su^2/(2*k2^4)))
+  
+  cov_sasi = (lambda_covid/mu_epocovid[1:655]) *
+    2*beta_covid2[1:655]^2*sb^2*xi*(1-xi)/(k1*k2*(k1+k2))
+  
+  var_R0 <- var_sa + var_si + cov_sasi
+  
+  df_plot <- rbind(df_plot, data.frame(
+    time = time,
+    sigma_upsilon = factor(su),
+    varR0 = var_R0
+  ))
+}
+
+# normalización
+df_plot$relative <- df_plot$varR0 / max(df_plot$varR0, na.rm = TRUE)
+
+# gráfica
+ggplot(df_plot, aes(x = time, y = relative, color = sigma_upsilon)) +
+  geom_line(linewidth = 1) +
+  labs(
+    x = "Time",
+    y = "Relative Var(R0)",
+    color = expression(sigma[upsilon]),
+    #title = "Sensitivity of Var(R0) with respect to sigma_upsilon"
+  ) +
+  theme_minimal()
+
+R0_sq <- R0covid[5:655]^2
+var_R0 <- var_R0covid1[5:655]
+tau <- R0_sq / var_R0
+
+alpha <- 0.05
+LI <- var_R0 * qchisq(alpha/2,
+                      df = 1,
+                      ncp = tau)
+
+LS <- var_R0 * qchisq(1 - alpha/2,
+                      df = 1,
+                      ncp = tau)
+
+df_R0 <- data.frame(
+  time = datos_finales_covid$Dia[5:655],
+  R0_sq = R0_sq,
+  LI = LI,
+  LS = LS
+)
+
+grafica_R0sq <- ggplot(df_R0, aes(x = time)) +
+  
+  # Banda de confianza gris
+  geom_ribbon(aes(ymin = LI,
+                  ymax = LS),
+              fill = "gray70",
+              alpha = 0.4) +
+  
+  # Limite inferior gris
+  geom_line(aes(y = LI),
+            color = "gray40",
+            linewidth = 0.6,
+#            linetype = "dotted"
+) +
+  
+  # Limite superior gris
+  geom_line(aes(y = LS),
+            color = "gray40",
+            linewidth = 0.6,
+#            linetype = "dotted"
+            ) +
+  
+  # R0^2 determinista
+  geom_line(aes(y = R0_sq,
+                color = "Deterministic " ),
+            linewidth = 1) +
+  
+#  geom_hline(yintercept = 1,
+#             linetype = "dashed",
+#             color = "red",
+#             linewidth = 0.9) +
+  
+  scale_color_manual(
+    values = c("Deterministic " = "darkblue"),
+    labels = c(expression(R[0]^2))
+  ) +
+  
+  labs(
+    x = "Date",
+    y = expression(R[0]^2),
+    color = "",
+#    title = expression(paste(R[0]^2," with 95% confidence interval"))
+  ) +
+  
+  scale_x_date(
+    date_breaks = "4 months",
+    date_labels = "%b/%y"
+  ) +
+  
+  theme_minimal()
+
+grafica_R0sq

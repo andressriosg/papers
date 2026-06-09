@@ -1,6 +1,6 @@
 ## Implementación del método de actualizacion de datos: 
 
-actu_lambda1 = max(na.omit(delta_pob))
+actu_lambda1 = mean(na.omit(delta_pob))
 
 actu_mu1 = NULL 
 for (i in 2:745) {

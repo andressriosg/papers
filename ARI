@@ -115,6 +115,8 @@ grafica_pob2_ingles <- ggplot(data = datos_expu_rep_acti1) +
   scale_x_date(date_breaks = "2 years", date_labels = "%Y") 
 grafica_pob2_ingles
 
+c(min(datos_expu_rep_acti1[, 2]), max(datos_expu_rep_acti1[, 2]))
+
 acti_betasseiringles <- ggplot(data = parametros_actiseir1) + 
   geom_line(aes(x = parametros_actiseir1[, 1], y = parametros_actiseir1[, 3]), color = "#CD6889",
             linewidth = 1.2) +
@@ -178,13 +180,13 @@ sigma_betaseiringles = (1/531)*(1/8)*(3*sum((datos_susceptiblesseir1[1:531] - me
                                              ((datos_infectadosseir1[1:531]^2)*(datos_susceptiblesseir1[1:531]^2))) + 
                                   (3)*sum((datos_recuperadosseir1[1:531] - media_rseir1[1:531])^2/
                                             ((datos_infectadosseir1[1:531]^2)*(datos_susceptiblesseir1[1:531]^2))))
-sqrt(sigma_betaseiringles)
+sqrt(abs(sigma_betaseiringles))
 
 sigma_upsiloningles = (1/531)*(1/2)*(sum((datos_expuestosseir1[1:531] - media_eseir1[1:531])^2/
                                      (datos_expuestosseir1[1:531]^2))  - 
                                  sum((datos_recuperadosseir1[1:531] - media_rseir1[1:531])^2/
                                          (datos_expuestosseir1[1:531]^2)))
-sqrt(sigma_upsiloningles)
+sqrt(abs(sigma_upsiloningles))
 
 sigma_gammaseiringles = (1/531)*(1/4)*(-sum((datos_susceptiblesseir1[1:531] - media_sseir1[1:531])^2/
                                         (datos_infectadosseir1[1:531]^2)) - 
@@ -196,28 +198,28 @@ sigma_gammaseiringles = (1/531)*(1/4)*(-sum((datos_susceptiblesseir1[1:531] - me
                                            (datos_infectadosseir1[1:531]^2)))
 sqrt(sigma_gammaseiringles)
 
-rhoseirseingles = - mean(sigma_betaseiringles*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2/
-                     (sqrt(sigma_betaseiringles*datos_susceptiblesseir1[1:531]*datos_infectadosseir1[1:531]*
-                        sqrt(sigma_betaseiringles*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2 + 
-                               sigma_upsiloningles*datos_expuestosseir1[1:531]^2)))
-rhoseireiingles = - mean(sigma_upsiloningles*datos_expuestosseir1[1:531]^2/
-                     (sqrt(sigma_betaseiringles*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2 + 
-                             sigma_upsiloningles*datos_expuestosseir1[1:531]^2)*
-                        sqrt(sigma_upsiloningles*datos_expuestosseir1[1:531]^2 + 
+rhoseirseingles = - mean(abs(sigma_betaseiringles)*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2/
+                     (sqrt(abs(sigma_betaseiringles))*datos_susceptiblesseir1[1:531]*datos_infectadosseir1[1:531]*
+                        sqrt(abs(sigma_betaseiringles)*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2 + 
+                               abs(sigma_upsiloningles)*datos_expuestosseir1[1:531]^2)))
+rhoseireiingles = - mean(abs(sigma_upsiloningles)*datos_expuestosseir1[1:531]^2/
+                     (sqrt(abs(sigma_betaseiringles)*datos_susceptiblesseir1[1:531]^2*datos_infectadosseir1[1:531]^2 + 
+                             abs(sigma_upsiloningles)*datos_expuestosseir1[1:531]^2)*
+                        sqrt(abs(sigma_upsiloningles)*datos_expuestosseir1[1:531]^2 + 
                                sigma_gammaseiringles*datos_infectadosseir1[1:531]^2)))
 rhoseiriringles = - mean(sigma_gammaseiringles*datos_infectadosseir1[1:531]^2/
                      (sqrt(sigma_gammaseiringles)*datos_infectadosseir1[1:531]*
-                        sqrt(sigma_upsiloningles*datos_expuestosseir1[1:531]^2 + 
+                        sqrt(abs(sigma_upsiloningles)*datos_expuestosseir1[1:531]^2 + 
                                sigma_gammaseiringles*datos_infectadosseir1[1:531]^2)))
 
 R0_1actuseiringles = actu_lambda1*(1/0.6193)*acti_betaseir1[1:531]/
   (actu_mu1[1:531]*((1/2.5) + actu_mu1[1:531])*((1/0.6193) + actu_mu1[1:531]))
 plot(R0_1actuseiringles[1:531], pch = 20, type = "p", cex = 0.4)
 
-R0estocasticoseiringles = (acti_betaseir1[1:531]^2*sigma_upsiloningles + 
-                       ((1/0.6193))^2*sigma_betaseiringles)*actu_lambda1^2/
+R0estocasticoseiringles = (acti_betaseir1[1:531]^2*abs(sigma_upsiloningles) + 
+                       ((1/0.6193))^2*abs(sigma_betaseiringles))*actu_lambda1^2/
   (actu_mu1[1:531]^2*(actu_mu1[1:531] + (1/2.5))^3*(actu_mu1[1:531] + (1/0.6193))^3) + 
-  sigma_betaseiringles*sigma_upsiloningles*actu_lambda1^2/
+  abs(sigma_betaseiringles)*abs(sigma_upsiloningles)*actu_lambda1^2/
   (2*actu_mu1[1:531]^2*(actu_mu1[1:531] + (1/2.5))^4*(actu_mu1[1:531] + (1/0.6193))^4)
 
 plot(sqrt(R0estocasticoseiringles))
@@ -302,3 +304,133 @@ ggplot(R0_df, aes(x = t)) +
     fill = guide_legend(order = 1),
     color = guide_legend(order = 2)
   )
+
+## Cuadrado medio del error: 
+
+set.seed(123)
+
+sigma_beta    <- sqrt(abs(sigma_betaseiringles))
+sigma_upsilon <- sqrt(abs(sigma_upsiloningles))
+sigma_gamma   <- sqrt(abs(sigma_gammaseiringles))
+
+m <- 1000
+n <- 531
+
+I_sim <- matrix(0, nrow = n, ncol = m)
+
+for(k in 1:m){
+  
+  S <- numeric(n)
+  E <- numeric(n)
+  I <- numeric(n)
+  R <- numeric(n)
+  
+  S[1] <- datos_susceptiblesseir1[1]
+  E[1] <- datos_expuestosseir1[1]
+  I[1] <- datos_infectadosseir1[1]
+  R[1] <- datos_recuperadosseir1[1]
+  
+  for(j in 2:n){
+    
+    dB <- rnorm(1)
+    dW <- rnorm(1)
+    dZ <- rnorm(1)
+    
+    S[j] <- S[j-1] +
+      (actu_lambda1 -
+         acti_betas_seir1[j-1]*datos_infectadosseir1[j-1] -
+         actu_mu1[j]*S[j-1]) -
+      sigma_beta*S[j-1]*datos_infectadosseir1[j-1]*dB
+    
+    E[j] <- E[j-1] +
+      (acti_betas_seir1[j-1]*datos_infectadosseir1[j-1] -
+         (1/0.6193)*E[j-1] -
+         actu_mu1[j]*E[j-1]) +
+      sigma_beta*S[j-1]*datos_infectadosseir1[j-1]*dB -
+      sigma_upsilon*E[j-1]*dW
+    
+    I[j] <- datos_infectadosseir1[j-1] +
+      (1/0.6193)*E[j-1] -
+      ((1/2.5)+actu_mu1[j])*datos_infectadosseir1[j-1] +
+      sigma_upsilon*E[j-1]*dW -
+      sigma_gamma*datos_infectadosseir1[j-1]*dZ
+    
+    R[j] <- R[j-1] +
+      (1/2.5)*datos_infectadosseir1[j-1] -
+      actu_mu1[j]*R[j-1] +
+      sigma_gamma*datos_infectadosseir1[j-1]*dZ
+  }
+  
+  I_sim[,k] <- I
+}
+
+MSE <- mean(
+  colMeans(
+    (I_sim - datos_infectadosseir1[1:n])^2
+  )
+)
+
+MSE
+
+# Para el modelo SIR 
+
+set.seed(123)
+
+sigma_beta_est  <- sqrt(abs(sigma_beta))
+sigma_gamma_est <- sqrt(abs(sigma_gamma))
+
+gamma <- 1/2.5
+
+m <- 1000
+n <- 531
+
+I_sim <- matrix(0, nrow = n, ncol = m)
+
+for(k in 1:m){
+  
+  S <- numeric(n)
+  I <- numeric(n)
+  R <- numeric(n)
+  
+  S[1] <- datos_susceptibles[1]
+  I[1] <- datos_infectados[1]
+  R[1] <- datos_recuperados[1]
+  
+  for(j in 2:n){
+    
+    dB <- rnorm(1)
+    dW <- rnorm(1)
+    
+    S[j] <- S[j-1] +
+      (actu_lambda1 -
+         actu_betas[j-1]*datos_infectados[j-1] -
+         actu_mu1[j]*S[j-1]) -
+      sigma_beta_est*actu_betas[j-1]*datos_infectados[j-1]*dB
+    
+    I[j] <- datos_infectados[j-1] +
+      (actu_betas[j-1]*datos_infectados[j-1] -
+         gamma*datos_infectados[j-1] -
+         actu_mu1[j]*datos_infectados[j-1]) +
+      sigma_beta_est*actu_betas[j-1]*datos_infectados[j-1]*dB -
+      sigma_gamma_est*datos_infectados[j-1]*dW
+    
+    R[j] <- R[j-1] +
+      gamma*datos_infectados[j-1] -
+      actu_mu1[j]*R[j-1] +
+      sigma_gamma_est*datos_infectados[j-1]*dW
+    
+    S[j] <- max(S[j],0)
+    I[j] <- max(I[j],0)
+    R[j] <- max(R[j],0)
+  }
+  
+  I_sim[,k] <- I
+}
+
+MSE1 <- mean(
+  colMeans(
+    (I_sim - datos_infectados[1:n])^2
+  )
+)
+
+MSE1

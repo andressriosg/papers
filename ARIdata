@@ -1,0 +1,442 @@
+# Código para las enfermedades respiratorias agudas 
+library(readxl)
+datos_IRA <- read_excel("~/Tesis de doctorado/R/datos IRA.xlsx")
+View(datos_IRA)
+nombres_IRA = as.character(t(datos_IRA[, 1]))
+datos_IRA = data.frame(t(as.matrix(datos_IRA[, 2:length(datos_IRA[2,])])))
+colnames(datos_IRA) = nombres_IRA
+head(datos_IRA)
+datos_IRA = data.frame(1:52, datos_IRA)
+colnames(datos_IRA) = c("Tiempo", nombres_IRA)
+
+plot(1:(52*11), c(datos_IRA[,1], datos_IRA[,2], datos_IRA[,3], 
+                  datos_IRA[,4], datos_IRA[,5], datos_IRA[,6], 
+                  datos_IRA[,7], datos_IRA[,8], datos_IRA[,9], 
+                  datos_IRA[,10], datos_IRA[,11]), lwd = 2, col = "blue", 
+     type = "l")
+
+abline(v = 52, lwd = "2", col = "red")
+abline(v = 52*2, lwd = "2", col = "red")
+abline(v = 52*3, lwd = "2", col = "red")
+abline(v = 52*4, lwd = "2", col = "red")
+abline(v = 52*5, lwd = "2", col = "red")
+abline(v = 52*6, lwd = "2", col = "red")
+abline(v = 52*7, lwd = "2", col = "red")
+abline(v = 52*8, lwd = "2", col = "red")
+abline(v = 52*9, lwd = "2", col = "red")
+abline(v = 52*10, lwd = "2", col = "red")
+abline(v = 52*11, lwd = "2", col = "red")
+
+?list
+suavizacion_IRA = list(matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3), 
+                            matrix(0, nrow = 52, ncol = 3))
+library(npregfast)
+?frfast
+
+for (i in 2:12) {
+  suavizacion_IRA[[i-1]] = data.frame(frfast(datos_IRA[,i] ~ 
+                                               datos_IRA[,1], model = "np", 
+                                           smooth = "kernel", kbin = 52, p = 3)$p)
+}
+
+plot(1:52, suavizacion_IRA[[1]][,1], ylim = c(0, max(datos_IRA)), col = 1, 
+     lwd = 2, type = "l")
+for (j in 2:11) {
+  lines(1:52, suavizacion_IRA[[j]][,1], ylim = c(0, max(datos_IRA)), col = j, 
+        lwd = 2)
+  points(1:52, datos_IRA[,j], ylim = c(0, max(datos_IRA)), col = j, 
+        pch = 20)
+}
+points(1:52, datos_IRA[,12], col = 12, pch = 20)
+
+IRA_bogota = data.frame(datos_IRA, suavizacion_IRA[[1]][,1], 
+                        suavizacion_IRA[[2]][,1], suavizacion_IRA[[3]][,1], 
+                        suavizacion_IRA[[4]][,1], suavizacion_IRA[[5]][,1], 
+                        suavizacion_IRA[[6]][,1], suavizacion_IRA[[7]][,1], 
+                        suavizacion_IRA[[8]][,1], suavizacion_IRA[[9]][,1], 
+                        suavizacion_IRA[[10]][,1], suavizacion_IRA[[11]][,1])
+
+casos_IRA = c(datos_IRA[,2], datos_IRA[,3], datos_IRA[,4], datos_IRA[,5], 
+              datos_IRA[,6], datos_IRA[,7], datos_IRA[,8], datos_IRA[,9], 
+              datos_IRA[,10], datos_IRA[,11], datos_IRA[,12])
+casos_IRA_sua = c(suavizacion_IRA[[1]][,1], suavizacion_IRA[[2]][,1], 
+                  suavizacion_IRA[[3]][,1], suavizacion_IRA[[4]][,1], 
+                  suavizacion_IRA[[5]][,1], suavizacion_IRA[[6]][,1], 
+                  suavizacion_IRA[[7]][,1], suavizacion_IRA[[8]][,1], 
+                  suavizacion_IRA[[9]][,1], suavizacion_IRA[[10]][,1], 
+                  suavizacion_IRA[[11]][,1])
+
+plot(1:(52*11), casos_IRA, lwd = 2, col = "red", type = "l")
+lines(1:(52*11), casos_IRA_sua, lwd = 2, col = "blue")
+abline(v = 52, lwd = "2", col = "black")
+abline(v = 52*2, lwd = "2", col = "black")
+abline(v = 52*3, lwd = "2", col = "black")
+abline(v = 52*4, lwd = "2", col = "black")
+abline(v = 52*5, lwd = "2", col = "black")
+abline(v = 52*6, lwd = "2", col = "black")
+abline(v = 52*7, lwd = "2", col = "black")
+abline(v = 52*8, lwd = "2", col = "black")
+abline(v = 52*9, lwd = "2", col = "black")
+abline(v = 52*10, lwd = "2", col = "black")
+abline(v = 52*11, lwd = "2", col = "black")
+
+IRA_final = data.frame(1:length(casos_IRA), casos_IRA)
+IRA_suavizacion= data.frame(frfast(IRA_final[,2] ~ IRA_final[,1], 
+                                   model = "np", smooth = "kernel", 
+                                   kbin = (52*11), p = 3)$p)
+plot(1:(52*11), casos_IRA, lwd = 2, col = "red", type = "p", pch = 20)
+lines(1:(52*11), IRA_suavizacion[,1], lwd = 2, col = "blue")
+abline(v = 52, lwd = "2", col = "black")
+abline(v = 52*2, lwd = "2", col = "black")
+abline(v = 52*3, lwd = "2", col = "black")
+abline(v = 52*4, lwd = "2", col = "black")
+abline(v = 52*5, lwd = "2", col = "black")
+abline(v = 52*6, lwd = "2", col = "black")
+abline(v = 52*7, lwd = "2", col = "black")
+abline(v = 52*8, lwd = "2", col = "black")
+abline(v = 52*9, lwd = "2", col = "black")
+abline(v = 52*10, lwd = "2", col = "black")
+abline(v = 52*11, lwd = "2", col = "black")
+
+x <- seq(as.Date("2010-01-03"), 
+         as.Date("2025-12-31"), by="day") 
+install.packages("epitools")
+library(epitools)
+?as.week
+semanas_epidemicas <- as.numeric(as.week(as.character(x), 
+                                         min.date = "2010-01-03", 
+                                         sunday = TRUE)$cweek)
+año_epidemico <- as.numeric(as.week(as.character(x), 
+                                    min.date = "2010-01-03", 
+                                    sunday = TRUE)$cyear)
+length(which(año_epidemico == 2020)) # semana 31 2022, 2014 y 2020 tienes 53 semanas
+length(año_epidemico)
+length(casos_IRA)
+
+año_epidemiologico = c(casos_IRA[1:(5*52)], NA, 
+                       casos_IRA[(5*52 + 1):(10*52)], 
+                       rep(NA, (2*52 + 1)), 
+                       casos_IRA[(10*52 + 1):(10*52 + 30)])
+dias_antes = as.week(as.character(x), min.date = "2010-01-03", 
+                     sunday = TRUE)$cstratum2
+actualizado2022 = c(30199, 33649, 36460, 33802, 28820, 22732,
+                    22726, 24062, 25735, 27559, 26729, 27265,
+                    32009, 32697, 21432, 32642, 31886, 38222, 
+                    46015, 53277, 54025, 56826, 59554, 60068, 
+                    57519, 50562, 52840, 50563, 42858, 46781,
+                    45114, 39967, 38789, 43832, 41096, 43578, 
+                    44311, 44279, 44137, 44032, 36765, 35994,
+                    36267, 38366, 39647, 46186, 47494, 47778,
+                    43185, 44826, 37458, 32554, 25377, 24959, 
+                    24594, 24065, 24652, 32318,	38495, 42089, 
+                    43422, 42937, 41806, 47212, 50223, 33393,
+                    43131, 45132, 47037, 54791, 60041, 56088,
+                    52797, 54644, 50705, 43940, 39343, 35674,
+                    31137, 32291,	27911, 36987, 34086, 35114,
+                    34746, 32559, 32737, 35012, 34617, 35696,
+                    36232, 35301, 31891, 29625, 32806, 34065, 
+                    33374, 34437, 37538, 37114, 32659, 36237, 
+                    31632, 28309, 29535, 34877,	35057, 33074,
+                    28490, 33423, 39772, 39970,	38820, 37570,
+                    38091, 36675, 21045, 30814,	33215, 36053)
+IRA_bog_fin = data.frame((as.Date(dias_antes) + 3)[1:746], 
+                         semanas_epidemicas[1:746], 
+                         c(año_epidemiologico[1:626], 
+                           actualizado2022))
+tail(IRA_bog_fin)
+colnames(IRA_bog_fin) <- c("Fecha", "Semana", "No. casos")
+
+plot(actualizado2022)
+abline(v = 117, lwd = 2)
+plot(IRA_bog_fin$Fecha[1:742], IRA_bog_fin$`No. casos`[1:742], 
+     type = "l", lwd = 2, 
+     col = "blue")
+
+library(ggplot2)
+grafica_IRA <- ggplot(data = IRA_bog_fin) + 
+  geom_point(aes(x = IRA_bog_fin[, 1], y = IRA_bog_fin[, 3]), 
+             size = 1.3, color = "orchid1") + 
+  labs(x = 'Tiempo (Semanas epidemiológicas)', y = 'Número de casos') + 
+  geom_line(aes(x = IRA_bog_fin[, 1], y = IRA_bog_fin[, 3]), 
+            linewidth = 0.6, color = "orchid1") + 
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y")
+grafica_IRA
+
+# install.packages("zoo")
+library(zoo)
+# install.packages("forecast")
+library(forecast)
+# install.packages("TSA")
+library(TSA)
+# install.packages("imputeTS")
+library(imputeTS)
+?na.interpolation
+serie_casos = na.interpolation(ts(IRA_bog_fin$`No. casos`[1:521]), 
+                               option = "spline")
+
+periodogram(serie_casos, xlab = "Frecuencia", ylab = "Periodograma", 
+            las =2, cex.axis = 0.8)
+abline(v = 0.02, lwd = 2, col = "purple")
+abline(v = 0.04, lwd = 2, col = "purple")
+abline(v = 0.075, lwd = 2, col = "purple")
+periodo = 1/0.02
+
+?arima
+ajuste = arima(serie_casos, order = c(1, 0, 1), 
+               seasonal = list(order = c(1, 1, 0), period = 50))
+
+plot(ajuste$residuals + IRA_bog_fin$`No. casos`[1:521], type = "l", 
+     col = "blue", lwd = 2)
+points(IRA_bog_fin$`No. casos`[1:521], pch = 20)
+pronostico_IRA = forecast(ajuste, h = (52*2+1))
+plot(pronostico_IRA)
+
+plot(c(IRA_bog_fin$`No. casos`[1:521], data.frame(pronostico_IRA)[,1]))
+
+casos_estimados <- c(IRA_bog_fin$`No. casos`[1:521], data.frame(pronostico_IRA)[,1], 
+                     IRA_bog_fin$`No. casos`[627:656])
+plot((as.Date(dias_antes) + 3)[1:676], 
+     c(casos_estimados, rep(NA, 20)), type = "l", lwd = 2, col = "darkblue")
+lines((as.Date(dias_antes) + 3)[626:730], actualizado2022, 
+      col = "red", lwd = 2)
+
+matriz_1 = matrix(0, ncol = 4, nrow = 4)
+for (i in 0:3) {
+  for (j in 0:3) {
+    matriz_1[i+1,j+1] = AIC(arima(IRA_bog_fin$`No. casos`[1:521], 
+                                  order = c(i, 0, j), 
+                                  seasonal = list(order = c(0, 0, 0), 
+                                                  period = 50)))}}
+matriz_1
+min(matriz_1)
+
+matriz_2 = matrix(0, ncol = 4, nrow = 4)
+for (i in 0:3) {
+  for (j in 0:3) {
+    matriz_2[i+1,j+1] = AIC(arima(IRA_bog_fin$`No. casos`[1:521], 
+                                  order = c(i, 1, j), 
+                                  seasonal = list(order = c(0, 0, 0), 
+                                                  period = 50)))}}
+matriz_2
+min(matriz_2)
+
+matriz_3 = matrix(0, ncol = 4, nrow = 4)
+for (i in 0:3) {
+  for (j in 0:3) {
+    matriz_3[i+1,j+1] = AIC(arima(IRA_bog_fin$`No. casos`[1:521], 
+                                  order = c(i, 2, j), 
+                                  seasonal = list(order = c(0, 0, 0), 
+                                                  period = 50)))}}
+matriz_3
+min(matriz_3)
+
+matriz_3_1 = matrix(0, ncol = 4, nrow = 4)
+for (i in 0:3) {
+  for (j in 0:3) {
+    matriz_3_1[i+1,j+1] = AIC(arima(IRA_bog_fin$`No. casos`[1:521], 
+                                  order = c(i, 3, j), 
+                                  seasonal = list(order = c(0, 0, 0), 
+                                                  period = 50)))}}
+matriz_3_1
+min(matriz_1, matriz_2, matriz_3, matriz_3_1)
+
+matriz_4 = matrix(0, ncol = 4, nrow = 4)
+for (i in 0:3) {
+  for (j in 0:3) {
+    matriz_4[i+1,j+1] = AIC(arima(IRA_bog_fin$`No. casos`[1:521], 
+                                  order = c(3, 2, 3), 
+                                  seasonal = list(order = c(i, 0, j), 
+                                                  period = 50)))}}
+matriz_4
+min(matriz_4[which(matriz_4 > 0)])
+
+matriz_5 = matrix(0, ncol = 4, nrow = 4)
+for (i in 0:3) {
+  for (j in 0:3) {
+    matriz_5[i+1,j+1] = AIC(arima(IRA_bog_fin$`No. casos`[1:521], 
+                                  order = c(3, 2, 3), 
+                                  seasonal = list(order = c(i, 1, j), 
+                                                  period = 50)))}}
+matriz_5
+min(matriz_5[which(matriz_5 > 0)])
+
+matriz_6 = matrix(0, ncol = 4, nrow = 4)
+for (i in 0:3) {
+  for (j in 0:3) {
+    matriz_6[i+1,j+1] = AIC(arima(IRA_bog_fin$`No. casos`[1:521], 
+                                  order = c(3, 2, 3), 
+                                  seasonal = list(order = c(i, 2, j), 
+                                                  period = 50)))}}
+matriz_6
+min(matriz_6[which(matriz_6 > 0)])
+
+matriz_6_1 = matrix(0, ncol = 4, nrow = 4)
+for (i in 0:3) {
+  for (j in 0:3) {
+    matriz_6_1[i+1,j+1] = AIC(arima(IRA_bog_fin$`No. casos`[1:521], 
+                                    order = c(3, 2, 3), 
+                                    seasonal = list(order = c(i, 3, j), 
+                                                    period = 50)))}}
+matriz_6_1
+min(matriz_6_1[which(matriz_6_1 > 0)])
+
+ajuste_1 = arima(serie_casos, 
+                 order = c(1, 0, 5), 
+                 seasonal = list(order = c(0, 2, 2),  
+                                 period = 50))
+length(residuals(ajuste_1)) # order c(1,2,5), (1, 0, 5)
+
+library(forecast)
+pronostico_IRA_1 <- forecast(ajuste_1, h = 105)
+plot(pronostico_IRA_1)
+
+plot(c(IRA_bog_fin$`No. casos`[1:521], data.frame(pronostico_IRA_1)[,1]), 
+     lwd = 2, col = "purple", type = "l")
+abline(v = 521)
+abline(v = 630)
+
+casos_estimados_1 <- c(na_interpolation(IRA_bog_fin[1:521, 3]), 
+                       data.frame(pronostico_IRA_1)[,1], 
+                       IRA_bog_fin[627:745, 3])
+plot(casos_estimados_1, 
+     type = "l", lwd = 2, col = "darkblue")
+points(IRA_bog_fin$`No. casos`, pch = 20, col = "cyan")
+abline(v = 630, col = "red", lwd = 2)
+library(forecast)
+IRA_bog_fin_1 <- data.frame((as.Date(dias_antes) + 3)[1:746], 
+                            semanas_epidemicas[1:746], 
+                            c(año_epidemiologico[1:626], actualizado2022), 
+                            c(rep(NA, 521), data.frame(pronostico_IRA_1)[,1], 
+                              rep(NA, 120)), 
+                            sua_datos_mod_SIRSEIR_df[1:746,1])
+library(ggplot2)
+grafica_IRA_1 <- ggplot(data = IRA_bog_fin_1) + 
+  geom_point(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 3]), 
+             size = 1.5, color = "orchid1") + 
+  labs(x = 'Tiempo (Semanas epidemiológicas)', y = 'Número de casos') + 
+  geom_line(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 3]), 
+            linewidth = 0.7, color = "orchid1") + 
+  geom_line(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 4]), 
+            linewidth = 0.6, color = "darkorchid2") +
+  geom_point(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 4]), 
+             size = 1.3, color = "darkorchid2") + 
+  geom_line(aes(x = IRA_bog_fin_1[, 1], y = IRA_bog_fin_1[, 5]), 
+            linewidth = 1.2, color = "red4") +
+  scale_x_date(date_breaks = "2 years", date_labels = "%Y")
+grafica_IRA_1
+
+datos_mod_SIRSEIR <- casos_estimados_1 # Datos para aplicar los modelos
+plot(datos_mod_SIRSEIR, type = "l", lwd = 2, col = "darkblue")
+
+library(npregfast)
+tiempo_IRA <- 1:length(datos_mod_SIRSEIR)
+?frfast
+sua_datos_mod_SIRSEIR <- frfast(datos_mod_SIRSEIR ~ tiempo_IRA, 
+                                model = "np", smooth = "kernel", 
+                                kbin = 746, p = 3) # 
+sua_datos_mod_SIRSEIR_df <- data.frame(sua_datos_mod_SIRSEIR$p)
+plot(datos_mod_SIRSEIR, type = "l", lwd = 2, col = "darkblue")
+lines(sua_datos_mod_SIRSEIR_df[,1], col = "cyan", lwd = 2)
+
+plot(sua_datos_mod_SIRSEIR_df[,2], type = "l", lwd = 2, col = "darkblue")
+abline(h = 0, col = "red", lwd = 2)
+abline(v = which(abs(sua_datos_mod_SIRSEIR_df[,2]) < 70), 
+     col = "green", lwd = 2)
+abline(v = 123, col = "red", lwd = 2)
+abline(v = 145, col = "red", lwd = 2)
+abline(v = 159, col = "red", lwd = 2)
+abline(v = 174, col = "red", lwd = 2)
+abline(v = 204, col = "red", lwd = 2)
+abline(v = 238, col = "red", lwd = 2)
+abline(v = 298, col = "red", lwd = 2)
+abline(v = 316, col = "red", lwd = 2)
+abline(v = 333, col = "red", lwd = 2)
+abline(v = 349, col = "red", lwd = 2)
+abline(v = 381, col = "red", lwd = 2)
+abline(v = 400, col = "red", lwd = 2)
+abline(v = 419, col = "red", lwd = 2)
+abline(v = 438, col = "red", lwd = 2)
+abline(v = 458, col = "red", lwd = 2)
+abline(v = 510, col = "red", lwd = 2) # 503 no alcanza el cero
+abline(v = 520, col = "red", lwd = 2)
+abline(v = 538, col = "red", lwd = 2)
+abline(v = 569, col = "red", lwd = 2)
+abline(v = 587, col = "red", lwd = 2)
+abline(v = 630, col = "green", lwd = 2)
+abline(v = 653, col = "red", lwd = 2)
+abline(v = 680, col = "green", lwd = 2)
+abline(v = 697, col = "red", lwd = 2)
+abline(v = 718, col = "red", lwd = 2)
+abline(v = 737, col = "red", lwd = 2)
+
+# puntos_corte = c(which(abs(sua_datos_mod_SIRSEIR_df[,2]) < 30), 123, 145, 159, 174, 
+#                  204, 238, 298, 316, 333, 349, 381, 400, 419, 438, 458, 510, 
+#                  521, 538, 569, 587, 630, 653, 680, 697, 718, 737)
+# puntos_corte = sort(puntos_corte)
+puntos_corte = c(22,  58,  73,  79,  97, 103, 125, 136, 143, 159, 174, 192, 201, 223,
+                 239, 245, 262, 279, 285, 298, 316, 333, 352, 381, 400, 419, 438, 458,
+                 470, 492, 503, 521, 538, 569, 587, 630, 653, 680, 697, 718, 737)
+length(puntos_corte)
+IRA_bog_fin_der <- data.frame((as.Date(dias_antes) + 3)[1:746], 
+                              semanas_epidemicas[1:746], 
+                              sua_datos_mod_SIRSEIR_df[1:746,2])
+
+library(ggplot2)
+grafica_IRA_der <- ggplot(data = IRA_bog_fin_der) + 
+  geom_vline(xintercept = (as.Date(dias_antes) + 3)[puntos_corte], 
+             color = "lightpink2", linewidth = 0.5) + 
+  geom_line(aes(x = IRA_bog_fin_der[, 1], y = IRA_bog_fin_der[, 3]), 
+            linewidth = 1, color = "mediumorchid2") +
+  geom_hline(yintercept = 0, color = "mediumvioletred", linewidth = 1) +
+  labs(x = 'Tiempo (Semanas epidemiológicas)', y = 'Estimación de la derivada')  + 
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+grafica_IRA_der
+
+IRA_bog_fin_datos <- data.frame((as.Date(dias_antes) + 3)[1:746], 
+                                semanas_epidemicas[1:746], 
+                                datos_mod_SIRSEIR[1:746],
+                                sua_datos_mod_SIRSEIR_df[1:746,1])
+
+library(ggplot2)
+grafica_IRA_datos <- ggplot(data = IRA_bog_fin_datos) + 
+  geom_vline(xintercept = (as.Date(dias_antes) + 3)[puntos_corte], 
+             color = "skyblue1", linewidth = 0.5) + 
+  geom_point(aes(x = IRA_bog_fin_datos[, 1], y = IRA_bog_fin_datos[, 3]), 
+            size = 1.5, color = "orchid1") +
+  geom_line(aes(x = IRA_bog_fin_datos[, 1], y = IRA_bog_fin_datos[, 4]), 
+             linewidth = 1, color = "red4") +
+  labs(x = 'Tiempo (Semanas epidemiológicas)', y = 'Número de casos')  + 
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+grafica_IRA_datos
+
+plot(datos_mod_SIRSEIR, type = "l", lwd = 2, col = "darkblue")
+abline(v = puntos_corte, lwd = 1, col = "cyan")
+lines(sua_datos_mod_SIRSEIR_df[,1], col = "cyan", lwd = 2)
+lines(sua_datos_mod_SIRSEIR_df[1:650,1], col = "red", lwd = 2)
+
+### 
+
+ajuste_3 = arima(serie_casos, 
+                 order = c(2, 1, 2), 
+                 seasonal = list(order = c(0, 2, 2),  
+                                 period = 50))
+library(forecast)
+pronostico_IRA_3 <- forecast(ajuste_3, h = 15) # 105
+plot(pronostico_IRA_3, ylim = c(0, max(serie_casos)), lwd = 2)
+
+### Forecast a 10 pasos 
+library(imputeTS)
+casos_estimados_2 <- c(na_interpolation(IRA_bog_fin[1:521, 3]), 
+                       data.frame(pronostico_IRA_1)[1:10,1])
+plot(casos_estimados_2, 
+     type = "l", lwd = 2, col = "darkblue")
+points(IRA_bog_fin$`No. casos`, pch = 20, col = "cyan")
+par(mfrow = c(1,1))
